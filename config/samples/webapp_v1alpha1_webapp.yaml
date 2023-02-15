@@ -1,0 +1,12 @@
+apiVersion: webapp.viq.io/v1alpha1
+kind: Webapp
+metadata:
+  labels:
+    app.kubernetes.io/name: webapp
+    app.kubernetes.io/instance: webapp-sample
+    app.kubernetes.io/part-of: webapp-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: webapp-operator
+  name: webapp-sample
+spec:
+  # TODO(user): Add fields here
