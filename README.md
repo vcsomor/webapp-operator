@@ -1,6 +1,9 @@
 # webapp-operator
 // TODO(user): Add simple overview of use/purpose
 
+TODO: install nginx ingress controller
+TODO: webapp.viq.foo to /etc/hosts
+
 ## Description
 // TODO(user): An in-depth paragraph about your project and overview of use
 
