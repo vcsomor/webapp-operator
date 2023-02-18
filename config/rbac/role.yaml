@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - webapp.viq.io
+  resources:
+  - webapps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - webapp.viq.io
+  resources:
+  - webapps/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - webapp.viq.io
+  resources:
+  - webapps/status
+  verbs:
+  - get
+  - patch
+  - update
