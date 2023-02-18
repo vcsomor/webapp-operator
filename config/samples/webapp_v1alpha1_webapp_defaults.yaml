@@ -7,11 +7,7 @@ metadata:
     app.kubernetes.io/part-of: webapp-operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: webapp-operator
-  name: webapp-sample
+  name: webapp-sample-defaults
 spec:
-  replicas: 2
   host: example.local
-  image: nginx:latest
-  containerPort: 80
   caProviderAccount: mail-me@gmail.com
-  caProviderUrl: https://acme-staging-v02.api.letsencrypt.org/directory

@@ -28,8 +28,37 @@ type WebappSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Webapp. Edit webapp_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Replicas defines the number of Webapp instances
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:default=3
+	// +kubebuilder:validation:Optional
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// Host defines the host that the Web application will listen on
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Host string `json:"host,omitempty"`
+
+	// Image defines the image for the webapp deployment
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:default="nginx:latest"
+	// +kubebuilder:validation:Optional
+	Image string `json:"image,omitempty"`
+
+	// ContainerPort defines the port that will be used to init the container with the image
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:default=80
+	// +kubebuilder:validation:Optional
+	ContainerPort int32 `json:"containerPort,omitempty"`
+
+	// CaProviderAccount is the account for issuing tls certificates
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CaProviderAccount string `json:"caProviderAccount,omitempty"`
+
+	// CaProviderUrl is the URL account for issuing tls certificates
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:default="https://acme-staging-v02.api.letsencrypt.org/directory"
+	// +kubebuilder:validation:Optional
+	CaProviderUrl string `json:"caProviderUrl,omitempty"`
 }
 
 // WebappStatus defines the observed state of Webapp
@@ -42,6 +71,7 @@ type WebappStatus struct {
 //+kubebuilder:subresource:status
 
 // Webapp is the Schema for the webapps API
+// +kubebuilder:subresource:status
 type Webapp struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

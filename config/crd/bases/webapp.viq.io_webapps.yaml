@@ -35,10 +35,32 @@ spec:
           spec:
             description: WebappSpec defines the desired state of Webapp
             properties:
-              foo:
-                description: Foo is an example field of Webapp. Edit webapp_types.go
-                  to remove/update
+              caProviderAccount:
+                description: CaProviderAccount is the account for issuing tls certificates
                 type: string
+              caProviderUrl:
+                default: https://acme-staging-v02.api.letsencrypt.org/directory
+                description: CaProviderUrl is the URL account for issuing tls certificates
+                type: string
+              containerPort:
+                default: 80
+                description: ContainerPort defines the port that will be used to init
+                  the container with the image
+                format: int32
+                type: integer
+              host:
+                description: Host defines the host that the Web application will listen
+                  on
+                type: string
+              image:
+                default: nginx:latest
+                description: Image defines the image for the webapp deployment
+                type: string
+              replicas:
+                default: 3
+                description: Replicas defines the number of Webapp instances
+                format: int32
+                type: integer
             type: object
           status:
             description: WebappStatus defines the observed state of Webapp
