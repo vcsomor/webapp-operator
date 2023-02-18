@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main ]
   push:
     branches: [ main ]
 
@@ -13,7 +12,6 @@ jobs:
   build:
     name: Build project
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -28,3 +26,24 @@ jobs:
 
       - name: Build
         run: make build
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: vcsomor/webapp-operator
+          tags: latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
