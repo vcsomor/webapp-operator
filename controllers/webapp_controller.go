@@ -18,17 +18,17 @@ package controllers
 
 import (
 	"context"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
-	"time"
-
 	webappv1alpha1 "github.com/vcsomor/webapp-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +45,7 @@ type WebappReconciler struct {
 //+kubebuilder:rbac:groups=webapp.viq.io,resources=webapps/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=webapp.viq.io,resources=webapps/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
@@ -63,11 +64,11 @@ func (r *WebappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	err := r.Get(ctx, req.NamespacedName, webapp)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("webbapp resource not found. Ignoring since object must be deleted")
+			log.Info("webapp resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get memcached")
+		log.Error(err, "Failed to get webapp")
 		return ctrl.Result{}, err
 	}
 
@@ -76,9 +77,10 @@ func (r *WebappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	namespacedName := types.NamespacedName{Name: webapp.Name, Namespace: webapp.Namespace}
 	// Check if the deployment already exists, if not create a new one
-	found := &appsv1.Deployment{}
-	err = r.Get(ctx, types.NamespacedName{Name: webapp.Name, Namespace: webapp.Namespace}, found)
+	dplyFound := &appsv1.Deployment{}
+	err = r.Get(ctx, namespacedName, dplyFound)
 	if err != nil && apierrors.IsNotFound(err) {
 		// Define a new deployment
 		deployment, err := r.deploymentForWebapp(webapp)
@@ -95,10 +97,12 @@ func (r *WebappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 
+		log.Info("Deployment created",
+			"Deployment.Namespace", deployment.Namespace, "Deployment.Name", deployment.Name)
 		// Deployment created successfully
 		// We will requeue the reconciliation so that we can ensure the state
 		// and move forward for the next operations
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get Deployment")
 		// Let's return the error for the reconciliation be re-trigged again
@@ -106,33 +110,72 @@ func (r *WebappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Check deployment replicas
-	dplyCheck := checkDeploymentUpdate(&webapp.Spec, &found.Spec)
+	dplyCheck := checkDeploymentUpdate(&webapp.Spec, &dplyFound.Spec)
 	if dplyCheck.isUpdateRequired() {
+		log.Info("Deployment created reconciliation required",
+			"Deployment.Namespace", dplyFound.Namespace, "Deployment.Name", dplyFound.Name)
+
 		// if replicas are different
 		if dplyCheck.replicasDifferent {
+			log.Info("Changing replica count",
+				"Deployment.Namespace", dplyFound.Namespace, "Deployment.Name", dplyFound.Name)
 			replicas := webapp.Spec.Replicas
-			found.Spec.Replicas = &replicas
-			if err = r.Update(ctx, found); err != nil {
-				log.Error(err, "Failed to update Deployment",
-					"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			dplyFound.Spec.Replicas = &replicas
+			if err = r.Update(ctx, dplyFound); err != nil {
+				log.Error(err, "Failed to update Deployment (replicas)",
+					"Deployment.Namespace", dplyFound.Namespace, "Deployment.Name", dplyFound.Name)
 				return ctrl.Result{}, err
 			}
+
 			// After the update requeue to check other differences
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
 
 		// if container port is different
 		if dplyCheck.portDifferent {
+			log.Info("Changing container port",
+				"Deployment.Namespace", dplyFound.Namespace, "Deployment.Name", dplyFound.Name)
 			cPort := webapp.Spec.ContainerPort
-			found.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = cPort
-			if err = r.Update(ctx, found); err != nil {
-				log.Error(err, "Failed to update Deployment",
-					"Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			dplyFound.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = cPort
+			if err = r.Update(ctx, dplyFound); err != nil {
+				log.Error(err, "Failed to update Deployment (port)",
+					"Deployment.Namespace", dplyFound.Namespace, "Deployment.Name", dplyFound.Name)
 				return ctrl.Result{}, err
 			}
 			// After the update requeue to check other differences
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
+	}
+
+	// Check if the service already exists, if not create a new one
+	srvFound := &corev1.Service{}
+	err = r.Get(ctx, namespacedName, srvFound)
+	if err != nil && apierrors.IsNotFound(err) {
+		// Define a new deployment
+		srv, err := r.serviceForWebapp(webapp)
+		if err != nil {
+			log.Error(err, "Failed to define new Service resource for Webapp")
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Creating a new Service",
+			"Service.Namespace", srv.Namespace, "Service.Name", srv.Name)
+		if err = r.Create(ctx, srv); err != nil {
+			log.Error(err, "Failed to create new Service",
+				"Service.Namespace", srv.Namespace, "Service.Name", srv.Name)
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Service created",
+			"Service.Namespace", srv.Namespace, "Service.Name", srv.Name)
+		// Service created successfully
+		// We will requeue the reconciliation so that we can ensure the state
+		// and move forward for the next operations
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Service")
+		// Let's return the error for the reconciliation be re-trigged again
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -140,18 +183,11 @@ func (r *WebappReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 func (r *WebappReconciler) deploymentForWebapp(webapp *webappv1alpha1.Webapp) (*appsv1.Deployment, error) {
 	name := webapp.Name
-
 	image := webapp.Spec.Image
 	replicas := webapp.Spec.Replicas
 	port := webapp.Spec.ContainerPort
 
-	labels := map[string]string{
-		"app":                          name,
-		"app.kubernetes.io/instance":   name,
-		"app.kubernetes.io/name":       "Webapp",
-		"app.kubernetes.io/part-of":    "webapp-operator",
-		"app.kubernetes.io/created-by": "controller-manager",
-	}
+	labels := labelsForWebapp(name)
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -184,7 +220,6 @@ func (r *WebappReconciler) deploymentForWebapp(webapp *webappv1alpha1.Webapp) (*
 	}
 
 	// Set the ownerRef for the Deployment
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
 	if err := ctrl.SetControllerReference(webapp, dep, r.Scheme); err != nil {
 		return nil, err
 	}
@@ -192,11 +227,58 @@ func (r *WebappReconciler) deploymentForWebapp(webapp *webappv1alpha1.Webapp) (*
 	return dep, nil
 }
 
+func (r *WebappReconciler) serviceForWebapp(webapp *webappv1alpha1.Webapp) (*corev1.Service, error) {
+	name := webapp.Name
+
+	labels := labelsForWebapp(name)
+
+	srv := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      webapp.Name,
+			Namespace: webapp.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeNodePort,
+			Selector: labels,
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Protocol: corev1.ProtocolTCP,
+					Port:     80,
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 80,
+						StrVal: "80",
+					},
+				},
+			},
+		},
+	}
+
+	// Set the ownerRef for the Service
+	if err := ctrl.SetControllerReference(webapp, srv, r.Scheme); err != nil {
+		return nil, err
+	}
+	return srv, nil
+}
+
+func labelsForWebapp(name string) map[string]string {
+	return map[string]string{
+		"app":                          name,
+		"app.kubernetes.io/instance":   name,
+		"app.kubernetes.io/name":       "Webapp",
+		"app.kubernetes.io/part-of":    "webapp-operator",
+		"app.kubernetes.io/created-by": "controller-manager",
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *WebappReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&webappv1alpha1.Webapp{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
 		Complete(r)
 }
 
@@ -214,9 +296,9 @@ func checkDeploymentUpdate(spec *webappv1alpha1.WebappSpec, found *appsv1.Deploy
 	portDifferent := true
 
 	containers := found.Template.Spec.Containers
-	if len(containers) != 1 {
+	if len(containers) >= 1 {
 		ports := containers[0].Ports
-		if len(ports) != 1 {
+		if len(ports) >= 1 {
 			if ports[0].ContainerPort == spec.ContainerPort {
 				portDifferent = false
 			}
