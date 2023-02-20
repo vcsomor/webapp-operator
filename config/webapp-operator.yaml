@@ -44,7 +44,7 @@ spec:
             description: WebappSpec defines the desired state of Webapp
             properties:
               cert-manager:
-                description: CaProviderUrl is the URL account for issuing tls certificates
+                description: CertManager is the Cert-manager resource name
                 type: string
               containerPort:
                 default: 80

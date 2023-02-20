@@ -50,7 +50,7 @@ type WebappSpec struct {
 	// +kubebuilder:validation:Optional
 	ContainerPort int32 `json:"containerPort,omitempty"`
 
-	// CaProviderUrl is the URL account for issuing tls certificates
+	// CertManager is the Cert-manager resource name
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CertManager string `json:"cert-manager,omitempty"`
 }
