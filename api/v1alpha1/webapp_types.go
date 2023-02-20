@@ -50,15 +50,9 @@ type WebappSpec struct {
 	// +kubebuilder:validation:Optional
 	ContainerPort int32 `json:"containerPort,omitempty"`
 
-	// CaProviderAccount is the account for issuing tls certificates
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CaProviderAccount string `json:"caProviderAccount,omitempty"`
-
 	// CaProviderUrl is the URL account for issuing tls certificates
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	// +kubebuilder:default="https://acme-staging-v02.api.letsencrypt.org/directory"
-	// +kubebuilder:validation:Optional
-	CaProviderUrl string `json:"caProviderUrl,omitempty"`
+	CertManager string `json:"cert-manager,omitempty"`
 }
 
 // WebappStatus defines the observed state of Webapp

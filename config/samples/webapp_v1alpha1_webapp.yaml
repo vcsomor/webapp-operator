@@ -10,8 +10,7 @@ metadata:
   name: webapp-sample
 spec:
   replicas: 2
-  host: example.local
+  host: webapp.viq.local
   image: nginx:latest
   containerPort: 80
-  caProviderAccount: mail-me@gmail.com
-  caProviderUrl: https://acme-staging-v02.api.letsencrypt.org/directory
+  cert-manager: letsencrypt-staging

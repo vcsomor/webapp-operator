@@ -35,11 +35,7 @@ spec:
           spec:
             description: WebappSpec defines the desired state of Webapp
             properties:
-              caProviderAccount:
-                description: CaProviderAccount is the account for issuing tls certificates
-                type: string
-              caProviderUrl:
-                default: https://acme-staging-v02.api.letsencrypt.org/directory
+              cert-manager:
                 description: CaProviderUrl is the URL account for issuing tls certificates
                 type: string
               containerPort:

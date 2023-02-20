@@ -9,5 +9,5 @@ metadata:
     app.kubernetes.io/created-by: webapp-operator
   name: webapp-sample-defaults
 spec:
-  host: example.local
-  caProviderAccount: mail-me@gmail.com
+  host: webapp-defaults.viq.local
+  cert-manager: letsencrypt-staging
